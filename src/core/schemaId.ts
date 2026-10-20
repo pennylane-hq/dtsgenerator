@@ -1,6 +1,28 @@
 import * as url from 'url';
 import { toTypeName } from './validateIdentifier';
 
+const resolveCache = new Map<string, string>();
+const parseCache = new Map<string, url.Url>();
+
+function cachedResolve(from: string, to: string): string {
+    const key = `${from}\0${to}`;
+    let resolved = resolveCache.get(key);
+    if (resolved === undefined) {
+        resolved = url.resolve(from, to);
+        resolveCache.set(key, resolved);
+    }
+    return resolved;
+}
+
+function cachedParse(input: string): url.Url {
+    let parsed = parseCache.get(input);
+    if (parsed === undefined) {
+        parsed = url.parse(input);
+        parseCache.set(input, parsed);
+    }
+    return parsed;
+}
+
 export default class SchemaId {
     private readonly absoluteId: string;
     public readonly id: url.Url;
@@ -10,11 +32,11 @@ export default class SchemaId {
         public readonly inputId: string,
         parentIds?: string[],
     ) {
-        let absoluteId = url.resolve('', inputId);
+        let absoluteId = cachedResolve('', inputId);
         if (parentIds) {
             parentIds.forEach((parent: string) => {
                 if (parent) {
-                    absoluteId = url.resolve(parent, absoluteId);
+                    absoluteId = cachedResolve(parent, absoluteId);
                 }
             });
         }
@@ -28,7 +50,7 @@ export default class SchemaId {
         ) {
             absoluteId = '/' + absoluteId;
         }
-        this.id = url.parse(absoluteId);
+        this.id = cachedParse(absoluteId);
         this.absoluteId = this.id.href;
     }
 
