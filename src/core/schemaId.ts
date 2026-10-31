@@ -4,7 +4,35 @@ import { toTypeName } from './validateIdentifier';
 const resolveCache = new Map<string, string>();
 const parseCache = new Map<string, url.Url>();
 
+const SIMPLE_REFERENCE = /^[\w\-.~/#]*$/;
+const DOT_SEGMENT = /(^|\/)\.\.?(\/|#|$)/;
+
+function isSimpleReference(ref: string): boolean {
+    return (
+        SIMPLE_REFERENCE.test(ref) &&
+        !DOT_SEGMENT.test(ref) &&
+        !ref.startsWith('//')
+    );
+}
+
+function simpleResolve(from: string, to: string): string | undefined {
+    if (!isSimpleReference(from) || !isSimpleReference(to)) {
+        return undefined;
+    }
+    if (to.startsWith('#')) {
+        return from.split('#')[0] + to;
+    }
+    if (to.startsWith('/')) {
+        return to;
+    }
+    return undefined;
+}
+
 function cachedResolve(from: string, to: string): string {
+    const simple = simpleResolve(from, to);
+    if (simple !== undefined) {
+        return simple;
+    }
     const key = `${from}\0${to}`;
     let resolved = resolveCache.get(key);
     if (resolved === undefined) {
